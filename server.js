@@ -1,56 +1,92 @@
-const express = require("express");
-const { engine } = require("express-handlebars");
-const fileUpload = require("express-fileupload")
-const app = express();
-const mysql = require("mysql");
+const express = require('express')
+const app = express()
+var bodyParser = require('body-parser');
+const port = 5003
 
-
-const PORT = 5000;
-
-app.use(fileUpload());
-
-app.use(express.static("upload"))
-
-app.engine('handlebars', engine());
-app.set('view engine', 'handlebars');
-app.set('views', './views');
-
-//connection pool
-const pool = mysql.createPool({
-    connectionLimit:10,
-    host:"localhost",
-    user: "root",
-    password: "root",
-    database: "image-uploader-youtube",
-    port: 8889,
-})
-
-app.get("/", (req, res)=>{
-    res.render("home");
-
-    pool.getConnection((err, connection) =>{
-        if (err)  throw err;
-        console.log("mysql接続中")
-
-        //データ取得から
-        connection.query("SELECT * FROM image", (err, rows) => {
-            connection.release();
-            console.log(rows)
-        })
-    });
+const mysql = require('mysql');
+app.set('view engine', 'ejs');
+app.get('/', function(req, res) {
+  res.render('index');
 });
-app.post("/",(req, res)=>{
-    if(!req.files){
-        return res.status(400).send("何も画像がアップロードされていません。")
-    }
-    console.log(req.files)
-let imageFile = req.files.imageFile;
-let uploadPath = __dirname + "/upload/" + imageFile.name
 
-//サーバーに画像ファイルを置く場所の指定
-imageFile.mv(uploadPath, function(err){
-    if(err) return res.status(500).send(err);
-    res.send("画像アップロードに成功しました。")
-})
-})
-app.listen(PORT, ()=> console.log("サーバー起動中"))
+app.use(express.static('link'))
+app.use(bodyParser.urlencoded({ extended: true }));
+
+const connection = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: 'root',
+  port:8889,
+  database: 'test',
+
+});
+app.post('/save-data', function(req, res) {
+  var name = req.body.name;
+  var email = req.body.email;
+
+  var data = {
+    name: name,
+    email: email
+  };
+  connection.query('INSERT INTO users SET ?', data, function(err, result) {
+    if (err) {
+      console.error('Error saving data:', err);
+      res.status(500).send('Error saving data');
+      return;
+    }
+    console.log('Data saved successfully');
+
+    // 保存されたデータを取得するクエリ
+    const selectQuery = 'SELECT * FROM users';
+
+    connection.query(selectQuery, function(err, result) {
+      if (err) {
+        console.error('Error retrieving data:', err);
+        res.status(500).send('Error retrieving data');
+        return;
+      }
+
+      console.log('Retrieved data:', result);
+
+      // resultを/save-dataに表示する
+      res.render('save-data', { result: result });
+    });
+  });
+});
+
+  
+  
+  /// もしテーブルが１つもない状態なら…
+  /// 代わりにデータベース名を表示してみよう
+  /*
+  const sql = "SELECT database()";
+  connection.query(sql, function (err, result) {
+    if (err) throw err;
+    console.log("Result: ", result);
+  });
+  */
+
+//   pref_category = [
+//     {category: 1, category_name: "東北"},
+//     {category: 2, category_name: "関東"},
+//     {category: 3, category_name: "関西"},
+//   ]
+// prefectures = [
+//   {todoufuken_no: "m101", category: 1, todoufuken: "北海道" },
+//   {todoufuken_no: "m102", category: 1, todoufuken: "青森" },
+//   {todoufuken_no: "m103", category: 2, todoufuken: "栃木" },
+//   {todoufuken_no: "m104", category: 3, todoufuken: "滋賀" },
+//   {todoufuken_no: "m105", category: 3, todoufuken: "大阪" },
+    
+//   ]
+    
+// pref_category.forEach(function(pref_value){
+//   console.log(pref_value.category_name)
+//   prefectures.forEach(function(prefectures_value){
+//     if(pref_value.category === prefectures_value.category){
+//     console.log(prefectures_value.todoufuken)}
+//   })
+// })
+  
+
+app.listen(port, () => console.log(`Example app listening on port ${port}!`))
